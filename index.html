@@ -137,7 +137,7 @@
 				<button id="pauseBtn" disabled>Pause</button>
 				<button id="stopBtn" disabled>Stop</button>
 			</div>
-			<div class="status" id="status">VRMモデルを読み込み中...</div>
+			<div class="status" id="status">Loading VRM model...</div>
 		</div>
 
 		<script type="importmap">
@@ -310,7 +310,7 @@
 				purgeCurrentVRM();
 				updateButtons();
 				
-				statusDiv.textContent = 'VRMモデルを読み込み中...';
+				statusDiv.textContent = 'Loading VRM model...';
 				
 				return new Promise((resolve, reject) => {
 					loader.load(
@@ -355,20 +355,20 @@
 							}
 							controls.update();
 
-							statusDiv.textContent = 'VRMモデルの読み込みが完了しました！';
+							statusDiv.textContent = 'VRM model loaded successfully!';
 							updateButtons();
 							resolve(vrm);
 						},
 						(progress) => {
 							if (localToken === AppState.vrmLoadToken) {
 								const percent = (100.0 * ( progress.loaded / progress.total )).toFixed(1);
-								statusDiv.textContent = `VRMモデルを読み込み中... ${percent}%`;
+								statusDiv.textContent = `Loading VRM model... ${percent}%`;
 							}
 						},
 						(error) => {
 							if (localToken === AppState.vrmLoadToken) {
 								console.error('Error loading VRM:', error);
-								statusDiv.textContent = 'VRMモデルの読み込み中にエラーが発生しました';
+								statusDiv.textContent = 'An error occurred while loading the VRM model.';
 								reject(error);
 							}
 						}
@@ -388,7 +388,7 @@
 								const clip = createVRMAnimationClip(vrmAnimationData, AppState.currentVrm);
 								if (clip) {
 									AppState.vrmaAnimationClip = clip;
-									statusDiv.textContent = 'VRMAアニメーションの読み込みが完了しました！';
+									statusDiv.textContent = 'VRMA animation loaded successfully!';
 									resolve(clip);
 								} else {
 									throw new Error('AnimationClip structural compilation failure.');
@@ -400,7 +400,7 @@
 						(progress) => {
 							if (localToken === AppState.animationLoadToken) {
 								const percent = (100.0 * ( progress.loaded / progress.total )).toFixed(1);
-								statusDiv.textContent = `VRMAアニメーションを読み込み中... ${percent}%`;
+								statusDiv.textContent = `Loading VRMA animation... ${percent}%`;
 							}
 						},
 						(error) => {
@@ -466,7 +466,7 @@
 
 				const clip = new THREE.AnimationClip(bvhClip.name || 'bvhAnimation', bvhClip.duration, tracks);
 				AppState.vrmaAnimationClip = clip;
-				statusDiv.textContent = 'BVHアニメーションの読み込みが完了しました！';
+				statusDiv.textContent = 'BVH animation loaded successfully!';
 				return clip;
 			}
 
@@ -500,7 +500,7 @@
 				} catch (error) {
 					if (localToken === AppState.animationLoadToken) {
 						console.error(`Error loading ${type} animation:`, error);
-						statusDiv.textContent = `アニメーションの読み込み中にエラーが発生しました: ${error.message}`;
+						statusDiv.textContent = `An error occurred while loading the animation: ${error.message}`;
 						updateButtons();
 					}
 				}
@@ -521,10 +521,10 @@
 						AppState.currentAction.play();
 						
 						playBtn.classList.add('active-playing');
-						statusDiv.textContent = `再生中 (${AppState.vrmaAnimationClip.duration.toFixed(2)}s)`;
+						statusDiv.textContent = `Playing (${AppState.vrmaAnimationClip.duration.toFixed(2)}s)`;
 					} catch (error) {
 						console.error('Error playing animation:', error);
-						statusDiv.textContent = '再生エラー: ' + error.message;
+						statusDiv.textContent = 'Playback error: ' + error.message;
 					}
 				}
 			}
@@ -534,10 +534,10 @@
 					AppState.currentAction.paused = !AppState.currentAction.paused;
 					if(AppState.currentAction.paused) {
 						playBtn.classList.remove('active-playing');
-						statusDiv.textContent = '一時停止中';
+						statusDiv.textContent = 'Paused';
 					} else {
 						playBtn.classList.add('active-playing');
-						statusDiv.textContent = '再生中...';
+						statusDiv.textContent = 'Playing...';
 					}
 				}
 			}
@@ -552,7 +552,7 @@
 					if (AppState.currentVrm) {
 						AppState.currentVrm.humanoid.resetPose();
 					}
-					statusDiv.textContent = '停止しました';
+					statusDiv.textContent = 'Stopped';
 				}
 			}
 
@@ -647,7 +647,7 @@
 						console.warn(e.message);
 					}
 				} else {
-					statusDiv.textContent = '利用可能なVRMモデルが見つかりませんでした。';
+					statusDiv.textContent = 'No available VRM models were found.';
 				}
 			});
 		</script>
