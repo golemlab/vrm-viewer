@@ -58,15 +58,9 @@
 				text-transform: uppercase; /* Uppercase text */
 				letter-spacing: 0.5px;
 			}
-			.controls button.vrma-btn {
-				background: linear-gradient(145deg, #4CAF50, #2e8b57); /* Green gradient for VRMA buttons */
-			}
 			.controls button:hover {
 				background: linear-gradient(145deg, #5c75e8, #e84c6c); /* Hover effect */
 				transform: translateY(-2px); /* Slight lift */
-			}
-			.controls button.vrma-btn:hover {
-				background: linear-gradient(145deg, #3e8e41, #246a41); /* Hover effect for VRMA buttons */
 			}
 			.controls button:active {
 				transform: translateY(1px);
@@ -113,8 +107,11 @@
 					<option value="">Loading models...</option>
 				</select>
 			</div>
-			<div id="vrmaButtons">
-				<label>VRMA Animations:</label>
+			<div>
+				<label>VRMA Animation:</label>
+				<select id="vrmaSelect" disabled>
+					<option value="">Loading animations...</option>
+				</select>
 			</div>
 			<div>
 				<button id="playBtn" disabled>Play</button>
@@ -143,7 +140,7 @@
 			import { VRMAnimationLoaderPlugin, createVRMAnimationClip } from '@pixiv/three-vrm-animation'; 
 
 			// DOM elements
-			const vrmaButtonsContainer = document.getElementById('vrmaButtons');
+			const vrmaSelect = document.getElementById('vrmaSelect');
 			const playBtn = document.getElementById('playBtn');
 			const pauseBtn = document.getElementById('pauseBtn');
 			const stopBtn = document.getElementById('stopBtn');
@@ -291,39 +288,24 @@
 				return [];
 			}
 
-			// Populate VRMA buttons from a list of animation file names
-			function populateVRMAButtons(animationFiles) {
-				const container = document.getElementById('vrmaButtons');
-				// Keep the label, remove any existing buttons
-				container.querySelectorAll('.vrma-btn').forEach(btn => btn.remove());
+			// Populate VRMA select dropdown from a list of animation file names
+			function populateVRMASelect(animationFiles) {
+				vrmaSelect.innerHTML = '';
 
 				vrmaAnimationURLs = animationFiles.map(file => VRMA_DIR + encodeURIComponent(file));
 
 				if (animationFiles.length === 0) {
-					const empty = document.createElement('button');
-					empty.className = 'vrma-btn';
-					empty.disabled = true;
-					empty.textContent = 'None found';
-					container.appendChild(empty);
+					vrmaSelect.appendChild(new Option('No animations found', ''));
+					vrmaSelect.disabled = true;
 					return;
 				}
 
-				animationFiles.forEach((file, index) => {
-					const btn = document.createElement('button');
-					btn.className = 'vrma-btn';
-					btn.disabled = true;
+				animationFiles.forEach(file => {
 					// Derive label from filename (e.g. "LookAround.vrma" → "LookAround")
-					btn.textContent = file.replace(/\.vrma$/i, '');
-					btn.addEventListener('click', async () => {
-						if (currentAction) {
-							currentAction.stop();
-							currentAction = undefined;
-						}
-						vrmaAnimationClip = undefined;
-						await loadVRMA(vrmaAnimationURLs[index]);
-					});
-					container.appendChild(btn);
+					const label = file.replace(/\.vrma$/i, '');
+					vrmaSelect.appendChild(new Option(label, VRMA_DIR + encodeURIComponent(file)));
 				});
+				vrmaSelect.disabled = false;
 			}
 
 			// --- File Loading Functions ---
@@ -522,10 +504,8 @@
 				const hasVrm = currentVrm !== undefined;
 				const hasVrma = vrmaAnimationClip !== undefined;
 				
-				// Enable VRMA selection buttons once VRM is loaded
-				vrmaButtonsContainer.querySelectorAll('.vrma-btn').forEach(btn => {
-					btn.disabled = !hasVrm;
-				});
+				// Enable VRMA select dropdown once VRM is loaded
+				vrmaSelect.disabled = !hasVrm;
 
 				// Enable play/pause/stop buttons only if both VRM and an animation are loaded
 				playBtn.disabled = !(hasVrm && hasVrma);
@@ -552,6 +532,25 @@
 				currentVRMModelURL = url;
 				await loadVRM(url);
 				updateButtons();
+			});
+
+			// Load and auto-play the selected VRMA animation when the dropdown changes
+			vrmaSelect.addEventListener('change', async () => {
+				const url = vrmaSelect.value;
+				if (!url) return;
+
+				// Stop current animation if playing
+				if (currentAction) {
+					currentAction.stop();
+					currentAction = undefined;
+				}
+				vrmaAnimationClip = undefined;
+
+				await loadVRMA(url);
+				// Auto-play after loading
+				if (vrmaAnimationClip) {
+					playAnimation();
+				}
 			});
 
 			window.addEventListener('resize', () => {
@@ -599,7 +598,7 @@
 				]);
 
 				populateVRMSelect(models);
-				populateVRMAButtons(animations);
+				populateVRMASelect(animations);
 
 				if (models.length > 0) {
 					currentVRMModelURL = VRM_DIR + encodeURIComponent(models[0]);
