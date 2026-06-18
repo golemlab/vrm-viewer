@@ -5,13 +5,15 @@
 		<title>three-vrm with VRMA/BVH animations</title>
 		<meta
 			name="viewport"
+			name="viewport"
 			content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no"
 		/>
 		<style>
 			body {
 				margin: 0;
-				font-family: 'Inter', sans-serif; /* Use Inter font */
-				overflow: hidden; /* Prevent scrolling */
+				font-family: 'Inter', sans-serif;
+				overflow: hidden;
+				background-color: #222222;
 			}
 			canvas {
 				display: block;
@@ -22,19 +24,20 @@
 				position: absolute;
 				top: 10px;
 				left: 10px;
-				background: rgba(0, 0, 0, 0.8); /* Slightly darker background */
+				background: rgba(0, 0, 0, 0.85);
 				color: white;
-				padding: 20px; /* More padding */
-				border-radius: 12px; /* More rounded corners */
+				padding: 20px;
+				border-radius: 12px;
 				z-index: 100;
 				display: flex;
 				flex-direction: column;
-				gap: 12px; /* More gap */
-				box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3); /* Stronger shadow */
+				gap: 12px;
+				box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4);
+				width: 320px;
 			}
 			.controls div {
 				display: flex;
-				flex-wrap: wrap; /* Allow buttons to wrap */
+				flex-wrap: wrap;
 				align-items: center;
 				gap: 10px;
 			}
@@ -42,40 +45,47 @@
 				min-width: 90px;
 				font-weight: bold;
 				color: #e0e0e0;
+				font-size: 13px;
 			}
 			.controls button {
 				flex: 1;
-				min-width: 80px; /* Ensure minimum width for buttons */
-				padding: 10px 15px; /* More padding */
-				background: linear-gradient(145deg, #6a82fb, #fc5c7d); /* Colorful gradient */
+				min-width: 70px;
+				padding: 10px 12px;
+				background: linear-gradient(145deg, #5c75e8, #e84c6c);
 				color: white;
 				border: none;
-				border-radius: 6px; /* More rounded corners */
+				border-radius: 6px;
 				cursor: pointer;
 				font-weight: bold;
-				transition: background 0.3s ease, transform 0.1s ease;
+				transition: all 0.2s ease;
 				box-shadow: 0 3px 6px rgba(0, 0, 0, 0.2);
-				text-transform: uppercase; /* Uppercase text */
+				text-transform: uppercase;
 				letter-spacing: 0.5px;
+				font-size: 11px;
 			}
 			.controls button:hover {
-				background: linear-gradient(145deg, #5c75e8, #e84c6c); /* Hover effect */
-				transform: translateY(-2px); /* Slight lift */
+				background: linear-gradient(145deg, #6a82fb, #fc5c7d);
+				transform: translateY(-1px);
 			}
 			.controls button:active {
 				transform: translateY(1px);
 			}
 			.controls button:disabled {
-				background: #666;
+				background: #444 !important;
+				color: #777;
 				cursor: not-allowed;
-				opacity: 0.7;
+				opacity: 0.6;
 				box-shadow: none;
 				transform: none;
+			}
+			.controls button.active-playing {
+				background: #28a745;
+				box-shadow: 0 0 8px rgba(40, 167, 69, 0.5);
 			}
 			.controls select {
 				flex: 1;
 				min-width: 80px;
-				padding: 10px 15px;
+				padding: 8px 12px;
 				background: rgba(255, 255, 255, 0.95);
 				color: #333;
 				border: none;
@@ -83,18 +93,21 @@
 				font-weight: bold;
 				cursor: pointer;
 				font-family: inherit;
-				font-size: inherit;
+				font-size: 12px;
 			}
 			.controls select:disabled {
-				background: #aaa;
+				background: #555;
+				color: #888;
 				cursor: not-allowed;
 				opacity: 0.7;
 			}
 			.status {
-				margin-top: 10px;
-				font-size: 14px;
-				color: #ccc;
+				margin-top: 5px;
+				font-size: 13px;
+				color: #aaa;
 				text-align: center;
+				word-break: break-all;
+				line-height: 1.4;
 			}
 		</style>
 	</head>
@@ -108,13 +121,13 @@
 				</select>
 			</div>
 			<div>
-				<label>VRMA Animation:</label>
+				<label>VRMA Anim:</label>
 				<select id="vrmaSelect" disabled>
 					<option value="">Loading animations...</option>
 				</select>
 			</div>
 			<div>
-				<label>BVH Animation:</label>
+				<label>BVH Anim:</label>
 				<select id="bvhSelect" disabled>
 					<option value="">Loading animations...</option>
 				</select>
@@ -147,19 +160,19 @@
 			import { BVHLoader } from 'three/addons/loaders/BVHLoader.js';
 
 			// DOM elements
+			const vrmSelect = document.getElementById('vrmSelect');
 			const vrmaSelect = document.getElementById('vrmaSelect');
 			const bvhSelect = document.getElementById('bvhSelect');
 			const playBtn = document.getElementById('playBtn');
 			const pauseBtn = document.getElementById('pauseBtn');
 			const stopBtn = document.getElementById('stopBtn');
 			const statusDiv = document.getElementById('status');
-			const vrmSelect = document.getElementById('vrmSelect'); // VRM model dropdown
 
 			// --- Three.js Setup ---
 			const renderer = new THREE.WebGLRenderer({ antialias: true });
 			renderer.setSize( window.innerWidth, window.innerHeight );
 			renderer.setPixelRatio( window.devicePixelRatio );
-			renderer.outputEncoding = THREE.sRGBEncoding; // Correct color space
+			renderer.outputColorSpace = THREE.SRGBColorSpace; // Corrected modern color space setting
 			document.body.appendChild( renderer.domElement );
 
 			const camera = new THREE.PerspectiveCamera( 30.0, window.innerWidth / window.innerHeight, 0.1, 20.0 );
@@ -171,598 +184,412 @@
 			controls.update();
 
 			const scene = new THREE.Scene();
-			scene.background = new THREE.Color(0x222222); // Darker background
+			scene.background = new THREE.Color(0x222222);
 
-			const light = new THREE.DirectionalLight( 0xffffff, 3.0 ); // Increased intensity
+			const light = new THREE.DirectionalLight( 0xffffff, 3.0 );
 			light.position.set( 1.0, 1.0, 1.0 ).normalize();
 			scene.add( light );
 
-			const ambientLight = new THREE.AmbientLight( 0xffffff, 1.0 ); // Brighter ambient light
+			const ambientLight = new THREE.AmbientLight( 0xffffff, 1.0 );
 			scene.add( ambientLight );
 
-			// --- Global Variables for VRM and Animation ---
-			let currentVrm = undefined;
-			let currentMixer = undefined;
-			let currentAction = undefined;
-			let vrmaAnimationClip = undefined; // Store the final THREE.AnimationClip
+			// --- Application State ---
+			const AppState = {
+				currentVrm: undefined,
+				currentMixer: undefined,
+				currentAction: undefined,
+				vrmaAnimationClip: undefined,
+				vrmLoadToken: 0,
+				animationLoadToken: 0
+			};
 
 			// --- GLTF Loader with VRM and VRMA Plugins ---
 			const loader = new GLTFLoader();
 			loader.crossOrigin = 'anonymous';
+			loader.register( ( parser ) => new VRMLoaderPlugin( parser ) );
+			loader.register( ( parser ) => new VRMAnimationLoaderPlugin( parser ) );
 
-			loader.register( ( parser ) => {
-				return new VRMLoaderPlugin( parser );
-			} );
-
-			loader.register( ( parser ) => {
-				return new VRMAnimationLoaderPlugin( parser );
-			} );
-
-			// --- File Paths ---
-			const VRM_DIR = './VRM/'; // Directory containing VRM models
-			const VRM_MANIFEST_URL = './VRM/models.json'; // Fallback manifest for hosts without directory listing
-			let currentVRMModelURL = undefined; // URL of the currently selected VRM model
-			const VRMA_DIR = './VRMA/';
-			const VRMA_MANIFEST_URL = './VRMA/manifest.json';
-			let vrmaAnimationURLs = []; // Dynamically discovered VRMA animation paths
-			const BVH_DIR = './bvh.animation/';
-			const BVH_MANIFEST_URL = './bvh.animation/manifest.json';
-			let bvhAnimationURLs = []; // Dynamically discovered BVH animation paths
 			const bvhLoader = new BVHLoader();
 
-			// --- VRM Model Discovery ---
-			// Try to list the VRM/ directory from the server's HTML directory listing
-			// (works with python -m http.server, npx serve, etc.). Fall back to a static
-			// manifest (works on GitHub Pages, which doesn't expose directory listings).
-			async function discoverVRMModels() {
-				// 1) Try parsing a server directory listing
+			// --- File Paths & Data Discovery ---
+			const VRM_DIR = './VRM/';
+			const VRM_MANIFEST_URL = './VRM/models.json';
+			const VRMA_DIR = './VRMA/';
+			const VRMA_MANIFEST_URL = './VRMA/manifest.json';
+			const BVH_DIR = './bvh.animation/';
+			const BVH_MANIFEST_URL = './bvh.animation/manifest.json';
+
+			async function discoverAssets(directory, manifestUrl, extension) {
 				try {
-					const response = await fetch(VRM_DIR);
+					const response = await fetch(directory);
 					if (response.ok) {
 						const html = await response.text();
-						const matches = [...html.matchAll(/href="([^"]+\.vrm)"/gi)];
-						const models = matches
+						const regex = new RegExp(`href="([^"]+\\.${extension})"` , 'gi');
+						const matches = [...html.matchAll(regex)];
+						const items = matches
 							.map(m => decodeURIComponent(m[1].split('/').pop()))
 							.filter(Boolean);
-						const unique = [...new Set(models)].sort((a, b) => a.localeCompare(b));
-						if (unique.length > 0) {
-							return unique;
-						}
+						const unique = [...new Set(items)].sort((a, b) => a.localeCompare(b));
+						if (unique.length > 0) return unique;
 					}
 				} catch (e) {
-					console.warn('Directory scan failed, falling back to manifest:', e);
+					console.warn(`${extension.toUpperCase()} directory scan failed, falling back to manifest:`, e);
 				}
 
-				// 2) Fall back to the static manifest
 				try {
-					const response = await fetch(VRM_MANIFEST_URL);
+					const response = await fetch(manifestUrl);
 					if (response.ok) {
 						const data = await response.json();
-						if (Array.isArray(data.models) && data.models.length > 0) {
-							return data.models;
-						}
+						const list = data.models || data.animations;
+						if (Array.isArray(list) && list.length > 0) return list;
 					}
 				} catch (e) {
-					console.error('Manifest load failed:', e);
+					console.error(`${extension.toUpperCase()} manifest load failed:`, e);
 				}
-
 				return [];
 			}
 
-			// Populate the model dropdown from a list of file names
-			function populateVRMSelect(modelFiles) {
-				vrmSelect.innerHTML = '';
-				if (modelFiles.length === 0) {
-					vrmSelect.appendChild(new Option('No models found', ''));
-					vrmSelect.disabled = true;
+			function populateSelect(element, files, directory) {
+				element.innerHTML = '';
+				if (files.length === 0) {
+					element.appendChild(new Option(`No items found`, ''));
+					element.disabled = true;
 					return;
 				}
-				modelFiles.forEach(file => {
-					// Encode the filename so URLs with spaces/special chars stay valid
-					vrmSelect.appendChild(new Option(file, VRM_DIR + encodeURIComponent(file)));
+				
+				// Standard placeholder option to avoid auto-triggering on clear
+				element.appendChild(new Option('-- Select --', ''));
+				
+				files.forEach(file => {
+					const label = file.replace(new RegExp(`\\.(vrm|vrma|bvh)$`, 'i'), '');
+					element.appendChild(new Option(label, directory + encodeURIComponent(file)));
 				});
-				vrmSelect.disabled = false;
+				element.disabled = false;
 			}
 
-			// --- VRMA Animation Discovery ---
-			async function discoverVRMAAnimations() {
-				// 1) Try parsing a server directory listing
-				try {
-					const response = await fetch(VRMA_DIR);
-					if (response.ok) {
-						const html = await response.text();
-						const matches = [...html.matchAll(/href="([^"]+\.vrma)"/gi)];
-						const animations = matches
-							.map(m => decodeURIComponent(m[1].split('/').pop()))
-							.filter(Boolean);
-						const unique = [...new Set(animations)].sort((a, b) => a.localeCompare(b));
-						if (unique.length > 0) {
-							return unique;
-						}
+			// --- Memory Cleanup Utilities ---
+			function disposeMaterial(material) {
+				if (!material) return;
+				material.dispose();
+				for (const key in material) {
+					if (material[key] && material[key].isTexture) {
+						material[key].dispose();
 					}
-				} catch (e) {
-					console.warn('VRMA directory scan failed, falling back to manifest:', e);
 				}
+			}
 
-				// 2) Fall back to the static manifest
-				try {
-					const response = await fetch(VRMA_MANIFEST_URL);
-					if (response.ok) {
-						const data = await response.json();
-						if (Array.isArray(data.animations) && data.animations.length > 0) {
-							return data.animations;
+			function purgeCurrentVRM() {
+				if (AppState.currentAction) {
+					AppState.currentAction.stop();
+					AppState.currentAction = undefined;
+				}
+				if (AppState.currentMixer && AppState.currentVrm) {
+					AppState.currentMixer.uncacheRoot(AppState.currentVrm.scene);
+				}
+				if (AppState.currentVrm) {
+					scene.remove(AppState.currentVrm.scene);
+					AppState.currentVrm.scene.traverse((obj) => {
+						if (obj.isMesh) {
+							obj.geometry.dispose();
+							if (Array.isArray(obj.material)) {
+								obj.material.forEach(m => disposeMaterial(m));
+							} else {
+								disposeMaterial(obj.material);
+							}
 						}
-					}
-				} catch (e) {
-					console.error('VRMA manifest load failed:', e);
+					});
+					AppState.currentVrm = undefined;
 				}
-
-				return [];
+				AppState.currentMixer = undefined;
+				AppState.vrmaAnimationClip = undefined;
 			}
 
-			// Populate VRMA select dropdown from a list of animation file names
-			function populateVRMASelect(animationFiles) {
-				vrmaSelect.innerHTML = '';
-
-				vrmaAnimationURLs = animationFiles.map(file => VRMA_DIR + encodeURIComponent(file));
-
-				if (animationFiles.length === 0) {
-					vrmaSelect.appendChild(new Option('No animations found', ''));
-					vrmaSelect.disabled = true;
-					return;
-				}
-
-				animationFiles.forEach(file => {
-					// Derive label from filename (e.g. "LookAround.vrma" → "LookAround")
-					const label = file.replace(/\.vrma$/i, '');
-					vrmaSelect.appendChild(new Option(label, VRMA_DIR + encodeURIComponent(file)));
-				});
-				vrmaSelect.disabled = false;
-			}
-
-			// --- BVH Animation Discovery ---
-			async function discoverBVHAnimations() {
-				// 1) Try parsing a server directory listing
-				try {
-					const response = await fetch(BVH_DIR);
-					if (response.ok) {
-						const html = await response.text();
-						const matches = [...html.matchAll(/href="([^"]+\.bvh)"/gi)];
-						const animations = matches
-							.map(m => decodeURIComponent(m[1].split('/').pop()))
-							.filter(Boolean);
-						const unique = [...new Set(animations)].sort((a, b) => a.localeCompare(b));
-						if (unique.length > 0) {
-							return unique;
-						}
-					}
-				} catch (e) {
-					console.warn('BVH directory scan failed, falling back to manifest:', e);
-				}
-
-				// 2) Fall back to the static manifest
-				try {
-					const response = await fetch(BVH_MANIFEST_URL);
-					if (response.ok) {
-						const data = await response.json();
-						if (Array.isArray(data.animations) && data.animations.length > 0) {
-							return data.animations;
-						}
-					}
-				} catch (e) {
-					console.error('BVH manifest load failed:', e);
-				}
-
-				return [];
-			}
-
-			// Populate BVH select dropdown from a list of animation file names
-			function populateBVHSelect(animationFiles) {
-				bvhSelect.innerHTML = '';
-
-				bvhAnimationURLs = animationFiles.map(file => BVH_DIR + encodeURIComponent(file));
-
-				if (animationFiles.length === 0) {
-					bvhSelect.appendChild(new Option('No animations found', ''));
-					bvhSelect.disabled = true;
-					return;
-				}
-
-				animationFiles.forEach(file => {
-					const label = file.replace(/\.bvh$/i, '');
-					bvhSelect.appendChild(new Option(label, BVH_DIR + encodeURIComponent(file)));
-				});
-				bvhSelect.disabled = false;
-			}
-
-			// --- File Loading Functions ---
-			/**
-			 * Loads a VRM model from a specified URL.
-			 * @param {string} url The URL of the VRM file.
-			 * @returns {Promise<any>} A promise that resolves with the loaded VRM.
-			 */
+			// --- Core Loading Mechanics ---
 			async function loadVRM(url) {
-				try {
-					statusDiv.textContent = 'VRMモデルを読み込み中...';
-					
-					return new Promise((resolve, reject) => {
-						loader.load(
-							url,
-							(gltf) => {
-								const vrm = gltf.userData.vrm;
-
-								// Apply performance optimizations
-								VRMUtils.removeUnnecessaryVertices( gltf.scene );
-								VRMUtils.combineSkeletons( gltf.scene );
-								VRMUtils.combineMorphs( vrm );
-
-								// Disable frustum culling for all objects in the VRM scene
-								vrm.scene.traverse( ( obj ) => {
-									obj.frustumCulled = false;
-								} );
-
-							// Remove previous VRM if one is loaded
-							if (currentVrm) {
-								scene.remove(currentVrm.scene);
-								currentVrm.scene.traverse((obj) => {
+				const localToken = ++AppState.vrmLoadToken;
+				purgeCurrentVRM();
+				updateButtons();
+				
+				statusDiv.textContent = 'VRMモデルを読み込み中...';
+				
+				return new Promise((resolve, reject) => {
+					loader.load(
+						url,
+						(gltf) => {
+							// Race condition check: drop if token changed mid-flight
+							if (localToken !== AppState.vrmLoadToken) {
+								gltf.scene.traverse((obj) => {
 									if (obj.isMesh) {
 										obj.geometry.dispose();
-										if (Array.isArray(obj.material)) {
-											obj.material.forEach(m => m.dispose());
-										} else {
-											obj.material.dispose();
-										}
+										if (Array.isArray(obj.material)) obj.material.forEach(m => disposeMaterial(m));
+										else disposeMaterial(obj.material);
 									}
 								});
+								return reject(new Error('VRM configuration outdated by newer selection.'));
 							}
+
+							const vrm = gltf.userData.vrm;
+
+							VRMUtils.removeUnnecessaryVertices( gltf.scene );
+							VRMUtils.combineSkeletons( gltf.scene );
+							VRMUtils.combineMorphs( vrm );
+
+							vrm.scene.traverse( ( obj ) => {
+								obj.frustumCulled = false;
+							} );
 
 							scene.add( vrm.scene );
 							VRMUtils.rotateVRM0( vrm );
-								currentVrm = vrm;
-								
-								// Create a new AnimationMixer for the current VRM
-								currentMixer = new THREE.AnimationMixer( vrm.scene );
-								
-								statusDiv.textContent = 'VRMモデルの読み込みが完了しました！';
-								console.log( 'VRM loaded:', vrm );
-								
-								resolve(vrm);
-							},
-							(progress) => {
+							
+							AppState.currentVrm = vrm;
+							AppState.currentMixer = new THREE.AnimationMixer( vrm.scene );
+							
+							// Auto-adjust camera target dynamically based on character chest position
+							const chestNode = vrm.humanoid.getNormalizedBoneNode('chest');
+							if (chestNode) {
+								const targetWorldPos = new THREE.Vector3();
+								chestNode.getWorldPosition(targetWorldPos);
+								controls.target.copy(targetWorldPos);
+							} else {
+								controls.target.set(0.0, 1.0, 0.0);
+							}
+							controls.update();
+
+							statusDiv.textContent = 'VRMモデルの読み込みが完了しました！';
+							updateButtons();
+							resolve(vrm);
+						},
+						(progress) => {
+							if (localToken === AppState.vrmLoadToken) {
 								const percent = (100.0 * ( progress.loaded / progress.total )).toFixed(1);
 								statusDiv.textContent = `VRMモデルを読み込み中... ${percent}%`;
-							},
-							(error) => {
+							}
+						},
+						(error) => {
+							if (localToken === AppState.vrmLoadToken) {
 								console.error('Error loading VRM:', error);
 								statusDiv.textContent = 'VRMモデルの読み込み中にエラーが発生しました';
 								reject(error);
 							}
-						);
-					});
-				} catch (error) {
-					console.error('Error in loadVRM:', error);
-					statusDiv.textContent = 'VRMモデルの読み込み中にエラーが発生しました';
-				}
+						}
+					);
+				});
 			}
 
-			/**
-			 * Loads a VRMA animation from a specified URL and converts it to a THREE.AnimationClip.
-			 * @param {string} url The URL of the VRMA file.
-			 * @returns {Promise<THREE.AnimationClip>} A promise that resolves with the generated AnimationClip.
-			 */
-			async function loadVRMA(url) {
-				if (!currentVrm) {
-					statusDiv.textContent = 'VRMモデルが読み込まれていません。先にVRMモデルをロードしてください。';
-					return;
-				}
-
-				try {
-					statusDiv.textContent = 'VRMAアニメーションを読み込み中...';
-					
-					return new Promise((resolve, reject) => {
-						loader.load(
-							url,
-							(gltf) => {
-								console.log('GLTF loaded (VRMA):', gltf);
-								
-								// gltf.userData.vrmAnimations[0] contains the raw VRMAnimation data object
-								const vrmAnimationData = gltf.userData.vrmAnimations && gltf.userData.vrmAnimations[0];
-
-								if (vrmAnimationData) {
-									// Call the standalone createVRMAnimationClip function
-									// It takes the VRMAnimation data object and the current VRM model
-									const clip = createVRMAnimationClip(vrmAnimationData, currentVrm);
-									
-									if (clip) {
-										vrmaAnimationClip = clip;
-										statusDiv.textContent = 'アニメーションの読み込みが完了しました！';
-										console.log('Generated AnimationClip:', vrmaAnimationClip);
-										
-										updateButtons(); // Enable play/pause/stop after animation is loaded
-										resolve(vrmaAnimationClip);
-									} else {
-										throw new Error('VRMAデータからAnimationClipを作成できませんでした。');
-									}
+			async function loadVRMA(url, localToken) {
+				return new Promise((resolve, reject) => {
+					loader.load(
+						url,
+						(gltf) => {
+							if (localToken !== AppState.animationLoadToken) return reject(new Error('Stale animation cancellation.'));
+							
+							const vrmAnimationData = gltf.userData.vrmAnimations && gltf.userData.vrmAnimations[0];
+							if (vrmAnimationData && AppState.currentVrm) {
+								const clip = createVRMAnimationClip(vrmAnimationData, AppState.currentVrm);
+								if (clip) {
+									AppState.vrmaAnimationClip = clip;
+									statusDiv.textContent = 'VRMAアニメーションの読み込みが完了しました！';
+									resolve(clip);
 								} else {
-									throw new Error('ファイル内に有効なVRMAアニメーションが見つかりませんでした。');
+									throw new Error('AnimationClip structural compilation failure.');
 								}
-							},
-							(progress) => {
+							} else {
+								throw new Error('Valid VRMA track sequence missing.');
+							}
+						},
+						(progress) => {
+							if (localToken === AppState.animationLoadToken) {
 								const percent = (100.0 * ( progress.loaded / progress.total )).toFixed(1);
 								statusDiv.textContent = `VRMAアニメーションを読み込み中... ${percent}%`;
-							},
-							(error) => {
-								console.error('Error loading animation:', error);
-								statusDiv.textContent = 'アニメーションファイルの読み込み中にエラーが発生しました: ' + error.message;
-								reject(error);
 							}
-						);
-					});
-		} catch (error) {
-			console.error('Error in loadVRMA:', error);
-			statusDiv.textContent = 'アニメーションファイルの読み込み中にエラーが発生しました';
-		}
-	}
-
-	/**
-	 * Loads a BVH animation from a specified URL and converts it to a THREE.AnimationClip
-	 * compatible with the current VRM model.
-	 * @param {string} url The URL of the BVH file.
-	 * @returns {Promise<THREE.AnimationClip>} A promise that resolves with the remapped AnimationClip.
-	 */
-	async function loadBVHAnimation(url) {
-		if (!currentVrm) {
-			statusDiv.textContent = 'VRMモデルが読み込まれていません。先にVRMモデルをロードしてください。';
-			return;
-		}
-
-		try {
-			statusDiv.textContent = 'BVHアニメーションを読み込み中...';
-
-			const result = await bvhLoader.loadAsync(url);
-			const bvhClip = result.clip;
-
-			if (!bvhClip || bvhClip.tracks.length === 0) {
-				throw new Error('BVHファイルに有効なアニメーションデータが見つかりませんでした。');
-			}
-
-			// Build a map from BVH bone name → VRM scene node
-			// BVH bone names already match VRM humanoid bone names,
-			// but we need the actual Object3D nodes from the VRM scene.
-			const boneNameToNode = {};
-
-			for (const track of bvhClip.tracks) {
-				const dotIndex = track.name.indexOf('.');
-				const boneName = track.name.substring(0, dotIndex);
-
-				if (boneNameToNode[boneName] !== undefined) continue; // already resolved
-
-				const node = currentVrm.humanoid.getNormalizedBoneNode(boneName);
-				boneNameToNode[boneName] = node || null;
-			}
-
-			const tracks = [];
-			let skippedBones = 0;
-
-			for (const track of bvhClip.tracks) {
-				const dotIndex = track.name.indexOf('.');
-				const boneName = track.name.substring(0, dotIndex);
-				const propName = track.name.substring(dotIndex + 1);
-
-				const node = boneNameToNode[boneName];
-				if (!node) {
-					skippedBones++;
-					continue; // Skip tracks for bones not in this VRM model
-				}
-
-				const nodePath = `${node.name}.${propName}`;
-
-				// For Hips position, scale to match VRM proportions and align to VRM rest pose
-				if (boneName === 'hips' && propName === 'position') {
-					const values = Float32Array.from(track.values);
-
-					// BVH units are typically in cm; VRM uses meters
-					const scaleFactor = 0.01;
-					for (let i = 0; i < values.length; i++) {
-						values[i] *= scaleFactor;
-					}
-
-					// Align BVH hips to VRM rest-pose hips position.
-					// BVHLoader computes framePosition + boneOffset, so values[0..2]
-					// are the absolute BVH-space position of the hips at frame 0.
-					// We compute the translation offset from frame 0 and apply it to
-					// every frame, preserving the BVH animation's relative motion.
-					const vrmHipsNode = currentVrm.humanoid.getNormalizedBoneNode('hips');
-					if (vrmHipsNode) {
-						const vrmPos = vrmHipsNode.position;
-						const offsetX = vrmPos.x - values[0];
-						const offsetY = vrmPos.y - values[1];
-						const offsetZ = vrmPos.z - values[2];
-						for (let i = 0; i < values.length; i += 3) {
-							values[i]     += offsetX;
-							values[i + 1] += offsetY;
-							values[i + 2] += offsetZ;
+						},
+						(error) => {
+							if (localToken === AppState.animationLoadToken) reject(error);
 						}
+					);
+				});
+			}
+
+			async function loadBVHAnimation(url, localToken) {
+				const result = await bvhLoader.loadAsync(url);
+				if (localToken !== AppState.animationLoadToken) throw new Error('Stale animation cancellation.');
+
+				const bvhClip = result.clip;
+				if (!bvhClip || bvhClip.tracks.length === 0) {
+					throw new Error('Empty or invalid BVH motion payload.');
+				}
+
+				const boneNameToNode = {};
+				for (const track of bvhClip.tracks) {
+					const boneName = track.name.split('.')[0];
+					if (boneNameToNode[boneName] !== undefined) continue;
+					const node = AppState.currentVrm.humanoid.getNormalizedBoneNode(boneName);
+					boneNameToNode[boneName] = node || null;
+				}
+
+				const tracks = [];
+				for (const track of bvhClip.tracks) {
+					const splitName = track.name.split('.');
+					const boneName = splitName[0];
+					const propName = splitName[1];
+
+					const node = boneNameToNode[boneName];
+					if (!node) continue;
+
+					const nodePath = `${node.name}.${propName}`;
+
+					if (boneName === 'hips' && propName === 'position') {
+						const values = Float32Array.from(track.values);
+						const scaleFactor = 0.01; // cm to m
+						for (let i = 0; i < values.length; i++) values[i] *= scaleFactor;
+
+						const vrmHipsNode = AppState.currentVrm.humanoid.getNormalizedBoneNode('hips');
+						if (vrmHipsNode) {
+							const vrmPos = vrmHipsNode.position;
+							const offsetX = vrmPos.x - values[0];
+							const offsetY = vrmPos.y - values[1];
+							const offsetZ = vrmPos.z - values[2];
+							for (let i = 0; i < values.length; i += 3) {
+								values[i]     += offsetX;
+								values[i + 1] += offsetY;
+								values[i + 2] += offsetZ;
+							}
+						}
+						tracks.push(new THREE.VectorKeyframeTrack(nodePath, track.times, values));
+					} else {
+						const TrackClass = track instanceof THREE.QuaternionKeyframeTrack
+							? THREE.QuaternionKeyframeTrack
+							: THREE.VectorKeyframeTrack;
+						tracks.push(new TrackClass(nodePath, track.times, Float32Array.from(track.values)));
+					}
+				}
+
+				const clip = new THREE.AnimationClip(bvhClip.name || 'bvhAnimation', bvhClip.duration, tracks);
+				AppState.vrmaAnimationClip = clip;
+				statusDiv.textContent = 'BVHアニメーションの読み込みが完了しました！';
+				return clip;
+			}
+
+			// --- Unified Animation Pipeline Handler ---
+			async function changeAnimationPipeline(url, type) {
+				if (!AppState.currentVrm || !url) return;
+
+				const localToken = ++AppState.animationLoadToken;
+
+				if (AppState.currentAction) {
+					AppState.currentAction.stop();
+					AppState.currentAction = undefined;
+				}
+				AppState.vrmaAnimationClip = undefined;
+				playBtn.classList.remove('active-playing');
+				updateButtons();
+
+				try {
+					if (type === 'VRMA') {
+						bvhSelect.value = ''; // Reset sibling dropdown
+						await loadVRMA(url, localToken);
+					} else if (type === 'BVH') {
+						vrmaSelect.value = ''; // Reset sibling dropdown
+						await loadBVHAnimation(url, localToken);
 					}
 
-					tracks.push(new THREE.VectorKeyframeTrack(
-						nodePath,
-						track.times,
-						values
-					));
-				} else {
-					// Clone the track as-is (rotations, other positions)
-					const TrackClass = track instanceof THREE.QuaternionKeyframeTrack
-						? THREE.QuaternionKeyframeTrack
-						: THREE.VectorKeyframeTrack;
-
-					const values = Float32Array.from(track.values);
-					tracks.push(new TrackClass(
-						nodePath,
-						track.times,
-						values
-					));
+					if (localToken === AppState.animationLoadToken && AppState.vrmaAnimationClip) {
+						updateButtons();
+						playAnimation();
+					}
+				} catch (error) {
+					if (localToken === AppState.animationLoadToken) {
+						console.error(`Error loading ${type} animation:`, error);
+						statusDiv.textContent = `アニメーションの読み込み中にエラーが発生しました: ${error.message}`;
+						updateButtons();
+					}
 				}
 			}
 
-			if (skippedBones > 0) {
-				console.warn(`BVH: Skipped ${skippedBones} tracks for bones not found in VRM model.`);
-			}
-
-			const clip = new THREE.AnimationClip(
-				bvhClip.name || 'bvhAnimation',
-				bvhClip.duration,
-				tracks
-			);
-
-			vrmaAnimationClip = clip;
-			statusDiv.textContent = 'BVHアニメーションの読み込みが完了しました！';
-			console.log('BVH AnimationClip:', clip);
-
-			updateButtons();
-			return clip;
-
-		} catch (error) {
-			console.error('Error loading BVH animation:', error);
-			statusDiv.textContent = 'BVHアニメーションの読み込み中にエラーが発生しました: ' + error.message;
-		}
-	}
-
-			// --- Animation Control Functions ---
-			/**
-			 * Starts playing the loaded VRMA animation.
-			 */
+			// --- Control Functions ---
 			function playAnimation() {
-				if (currentVrm && vrmaAnimationClip && currentMixer) {
-					// Stop any currently playing action
-					if (currentAction) {
-						currentAction.stop();
+				if (AppState.currentVrm && AppState.vrmaAnimationClip && AppState.currentMixer) {
+					if (AppState.currentAction) {
+						AppState.currentAction.stop();
 					}
 					
 					try {
-						console.log('Playing animation...');
+						AppState.currentAction = AppState.currentMixer.clipAction(AppState.vrmaAnimationClip);
+						AppState.currentAction.setLoop(THREE.LoopRepeat);
+						AppState.currentAction.clampWhenFinished = true;
+						AppState.currentAction.reset();
+						AppState.currentAction.play();
 						
-						// Create and configure animation action from the generated clip
-						currentAction = currentMixer.clipAction(vrmaAnimationClip);
-						currentAction.setLoop(THREE.LoopRepeat); // Loop the animation
-						currentAction.clampWhenFinished = true; // Stay at the last frame when finished
-						currentAction.reset(); // Reset to the start of the animation
-						currentAction.play(); // Start playing
-						
-						statusDiv.textContent = `アニメーションを再生中 (${vrmaAnimationClip.tracks.length} トラック, ${vrmaAnimationClip.duration.toFixed(2)}s)`;
-						console.log('Animation started successfully.');
+						playBtn.classList.add('active-playing');
+						statusDiv.textContent = `再生中 (${AppState.vrmaAnimationClip.duration.toFixed(2)}s)`;
 					} catch (error) {
 						console.error('Error playing animation:', error);
-						statusDiv.textContent = 'アニメーションの再生中にエラーが発生しました: ' + error.message;
+						statusDiv.textContent = '再生エラー: ' + error.message;
 					}
-				} else {
-					statusDiv.textContent = 'VRMモデルとアニメーションが読み込まれている必要があります。';
 				}
 			}
 
-			/**
-			 * Toggles the pause state of the animation.
-			 */
 			function pauseAnimation() {
-				if (currentAction) {
-					currentAction.paused = !currentAction.paused;
-					statusDiv.textContent = currentAction.paused ? 'アニメーション一時停止中' : 'アニメーション再生中...';
-				}
-			}
-
-			/**
-			 * Stops the animation and resets the model's pose.
-			 */
-			function stopAnimation() {
-				if (currentAction) {
-					currentAction.stop();
-					currentAction = undefined;
-					currentMixer.stopAllAction(); // Stop all actions on the mixer
-
-					// Reset VRM pose (optional, but good for stopping)
-					if (currentVrm) {
-						currentVrm.humanoid.resetPose();
+				if (AppState.currentAction) {
+					AppState.currentAction.paused = !AppState.currentAction.paused;
+					if(AppState.currentAction.paused) {
+						playBtn.classList.remove('active-playing');
+						statusDiv.textContent = '一時停止中';
+					} else {
+						playBtn.classList.add('active-playing');
+						statusDiv.textContent = '再生中...';
 					}
-					statusDiv.textContent = 'アニメーションが停止しました。';
 				}
 			}
 
-			// --- UI and Event Handlers ---
-			/**
-			 * Updates the state of the control buttons based on loaded files.
-			 */
-			function updateButtons() {
-				const hasVrm = currentVrm !== undefined;
-				const hasAnimation = vrmaAnimationClip !== undefined;
+			function stopAnimation() {
+				if (AppState.currentAction) {
+					AppState.currentAction.stop();
+					AppState.currentAction = undefined;
+					AppState.currentMixer.stopAllAction();
+					playBtn.classList.remove('active-playing');
 
-				// Enable animation select dropdowns once VRM is loaded
+					if (AppState.currentVrm) {
+						AppState.currentVrm.humanoid.resetPose();
+					}
+					statusDiv.textContent = '停止しました';
+				}
+			}
+
+			function updateButtons() {
+				const hasVrm = AppState.currentVrm !== undefined;
+				const hasAnimation = AppState.vrmaAnimationClip !== undefined;
+
 				vrmaSelect.disabled = !hasVrm;
 				bvhSelect.disabled = !hasVrm;
 
-				// Enable play/pause/stop buttons only if both VRM and an animation are loaded
 				playBtn.disabled = !(hasVrm && hasAnimation);
 				pauseBtn.disabled = !(hasVrm && hasAnimation);
 				stopBtn.disabled = !(hasVrm && hasAnimation);
 			}
 
+			// --- UI Event Configuration ---
 			playBtn.addEventListener('click', playAnimation);
 			pauseBtn.addEventListener('click', pauseAnimation);
 			stopBtn.addEventListener('click', stopAnimation);
 
-			// Load the selected VRM model when the dropdown changes
 			vrmSelect.addEventListener('change', async () => {
 				const url = vrmSelect.value;
 				if (!url) return;
-
-				// Stop any playing animation before swapping models
-				if (currentAction) {
-					currentAction.stop();
-					currentAction = undefined;
-				}
-				vrmaAnimationClip = undefined;
-
-				currentVRMModelURL = url;
-				await loadVRM(url);
-				updateButtons();
-			});
-
-			// Load and auto-play the selected VRMA animation when the dropdown changes
-			vrmaSelect.addEventListener('change', async () => {
-				const url = vrmaSelect.value;
-				if (!url) return;
-
-				// Stop current animation if playing
-				if (currentAction) {
-					currentAction.stop();
-					currentAction = undefined;
-				}
-				vrmaAnimationClip = undefined;
-
-				await loadVRMA(url);
-				// Auto-play after loading
-				if (vrmaAnimationClip) {
-					playAnimation();
+				
+				vrmaSelect.value = '';
+				bvhSelect.value = '';
+				playBtn.classList.remove('active-playing');
+				
+				try {
+					await loadVRM(url);
+				} catch (e) {
+					console.warn(e.message);
 				}
 			});
 
-			// Load and auto-play the selected BVH animation when the dropdown changes
-			bvhSelect.addEventListener('change', async () => {
-				const url = bvhSelect.value;
-				if (!url) return;
-
-				// Stop current animation if playing
-				if (currentAction) {
-					currentAction.stop();
-					currentAction = undefined;
-				}
-				vrmaAnimationClip = undefined;
-
-				await loadBVHAnimation(url);
-				// Auto-play after loading
-				if (vrmaAnimationClip) {
-					playAnimation();
-				}
-			});
+			vrmaSelect.addEventListener('change', () => changeAnimationPipeline(vrmaSelect.value, 'VRMA'));
+			bvhSelect.addEventListener('change', () => changeAnimationPipeline(bvhSelect.value, 'BVH'));
 
 			window.addEventListener('resize', () => {
 				camera.aspect = window.innerWidth / window.innerHeight;
@@ -771,56 +598,57 @@
 			});
 
 			// --- Helpers ---
-			const gridHelper = new THREE.GridHelper( 10, 10 );
-			scene.add( gridHelper );
-
-			const axesHelper = new THREE.AxesHelper( 5 );
-			scene.add( axesHelper );
+			scene.add( new THREE.GridHelper( 10, 10 ) );
+			scene.add( new THREE.AxesHelper( 5 ) );
 
 			// --- Animation Loop ---
 			const clock = new THREE.Clock();
 
 			function animate() {
 				requestAnimationFrame( animate );
-
 				const deltaTime = clock.getDelta();
 
-				// Update VRM and AnimationMixer
-				if ( currentVrm ) {
-					currentVrm.update( deltaTime );
+				if ( AppState.currentVrm ) {
+					// Safeguard explicit component frame evaluations required by modern three-vrm
+					if (AppState.currentVrm.lookAt) AppState.currentVrm.lookAt.update(deltaTime);
+					if (AppState.currentVrm.expressionManager) AppState.currentVrm.expressionManager.update(deltaTime);
+					
+					AppState.currentVrm.update(deltaTime);
 				}
-				if ( currentMixer ) {
-					currentMixer.update( deltaTime );
+				if ( AppState.currentMixer ) {
+					AppState.currentMixer.update( deltaTime );
 				}
 
-				controls.update(); // Update orbit controls
+				controls.update();
 				renderer.render( scene, camera );
 			}
 
-			// Start the animation loop
 			animate();
 
-			// --- Initial Load ---
-			// Discover available models and animations, populate UI, and load the first model
+			// --- Bootstrap Initialization ---
 			window.addEventListener('DOMContentLoaded', async () => {
 				const [models, vrmaAnimations, bvhAnimations] = await Promise.all([
-					discoverVRMModels(),
-					discoverVRMAAnimations(),
-					discoverBVHAnimations(),
+					discoverAssets(VRM_DIR, VRM_MANIFEST_URL, 'vrm'),
+					discoverAssets(VRMA_DIR, VRMA_MANIFEST_URL, 'vrma'),
+					discoverAssets(BVH_DIR, BVH_MANIFEST_URL, 'bvh'),
 				]);
 
-				populateVRMSelect(models);
-				populateVRMASelect(vrmaAnimations);
-				populateBVHSelect(bvhAnimations);
+				populateSelect(vrmSelect, models, VRM_DIR);
+				populateSelect(vrmaSelect, vrmaAnimations, VRMA_DIR);
+				populateSelect(bvhSelect, bvhAnimations, BVH_DIR);
 
+				// Preload the first available model if present
 				if (models.length > 0) {
-					currentVRMModelURL = VRM_DIR + encodeURIComponent(models[0]);
-					vrmSelect.value = currentVRMModelURL;
-					await loadVRM(currentVRMModelURL);
+					const firstVrmUrl = VRM_DIR + encodeURIComponent(models[0]);
+					vrmSelect.value = firstVrmUrl;
+					try {
+						await loadVRM(firstVrmUrl);
+					} catch(e) {
+						console.warn(e.message);
+					}
 				} else {
 					statusDiv.textContent = '利用可能なVRMモデルが見つかりませんでした。';
 				}
-				updateButtons(); // Update button states after VRM is loaded
 			});
 		</script>
 	</body>
