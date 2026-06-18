@@ -557,7 +557,7 @@
 
 				const nodePath = `${node.name}.${propName}`;
 
-				// For Hips position, scale to match VRM proportions
+				// For Hips position, scale to match VRM proportions and align to VRM rest pose
 				if (boneName === 'hips' && propName === 'position') {
 					const values = Float32Array.from(track.values);
 
@@ -565,6 +565,24 @@
 					const scaleFactor = 0.01;
 					for (let i = 0; i < values.length; i++) {
 						values[i] *= scaleFactor;
+					}
+
+					// Align BVH hips to VRM rest-pose hips position.
+					// BVHLoader computes framePosition + boneOffset, so values[0..2]
+					// are the absolute BVH-space position of the hips at frame 0.
+					// We compute the translation offset from frame 0 and apply it to
+					// every frame, preserving the BVH animation's relative motion.
+					const vrmHipsNode = currentVrm.humanoid.getNormalizedBoneNode('hips');
+					if (vrmHipsNode) {
+						const vrmPos = vrmHipsNode.position;
+						const offsetX = vrmPos.x - values[0];
+						const offsetY = vrmPos.y - values[1];
+						const offsetZ = vrmPos.z - values[2];
+						for (let i = 0; i < values.length; i += 3) {
+							values[i]     += offsetX;
+							values[i + 1] += offsetY;
+							values[i + 2] += offsetZ;
+						}
 					}
 
 					tracks.push(new THREE.VectorKeyframeTrack(

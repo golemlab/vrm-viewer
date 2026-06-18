@@ -41,6 +41,12 @@ All application logic is in `index.html`. There are no other JS files.
 2. Add filename to `bvh.animation/manifest.json` (needed for GitHub Pages)
 3. BVH files must use VRM humanoid bone names (hips, spine, chest, head, leftUpperArm, etc.)
 
+## Runtime Behavior
+
+- On load, the app discovers models/animations via directory listing (works with local servers), falling back to the JSON manifests (works on GitHub Pages).
+- Selecting a VRM model or animation from the dropdown auto-loads it; selecting an animation also auto-plays it.
+- The `VRM_MODEL_URL` variable in `index.html` is legacy; the dropdown now drives model selection at runtime.
+
 ## Gotchas
 
 - **No tests, no lint, no typecheck.** There are no quality gates.
