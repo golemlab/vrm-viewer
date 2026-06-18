@@ -416,8 +416,8 @@
 								});
 							}
 
-								scene.add( vrm.scene );
-								vrm.scene.rotation.y = Math.PI; // モデルを正面に回転
+							scene.add( vrm.scene );
+							VRMUtils.rotateVRM0( vrm );
 								currentVrm = vrm;
 								
 								// Create a new AnimationMixer for the current VRM
