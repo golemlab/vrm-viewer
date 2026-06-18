@@ -115,17 +115,6 @@
 			</div>
 			<div id="vrmaButtons">
 				<label>VRMA Animations:</label>
-				<button class="vrma-btn" disabled>Angry</button>
-				<button class="vrma-btn" disabled>Blush</button>
-				<button class="vrma-btn" disabled>Clapping</button>
-				<button class="vrma-btn" disabled>Goodbye</button>
-				<button class="vrma-btn" disabled>Jump</button>
-				<button class="vrma-btn" disabled>LookAround</button>
-				<button class="vrma-btn" disabled>Relax</button>
-				<button class="vrma-btn" disabled>Sad</button>
-				<button class="vrma-btn" disabled>Sleepy</button>
-				<button class="vrma-btn" disabled>Surprised</button>
-				<button class="vrma-btn" disabled>Thinking</button>
 			</div>
 			<div>
 				<button id="playBtn" disabled>Play</button>
@@ -154,7 +143,7 @@
 			import { VRMAnimationLoaderPlugin, createVRMAnimationClip } from '@pixiv/three-vrm-animation'; 
 
 			// DOM elements
-			const vrmaButtons = document.querySelectorAll('.vrma-btn'); // Select all VRMA buttons
+			const vrmaButtonsContainer = document.getElementById('vrmaButtons');
 			const playBtn = document.getElementById('playBtn');
 			const pauseBtn = document.getElementById('pauseBtn');
 			const stopBtn = document.getElementById('stopBtn');
@@ -208,19 +197,9 @@
 			const VRM_DIR = './VRM/'; // Directory containing VRM models
 			const VRM_MANIFEST_URL = './VRM/models.json'; // Fallback manifest for hosts without directory listing
 			let currentVRMModelURL = undefined; // URL of the currently selected VRM model
-			const VRMA_ANIMATION_URLS = [ // VRMA animation paths (relative paths)
-				'./VRMA/Angry.vrma',
-				'./VRMA/Blush.vrma',
-				'./VRMA/Clapping.vrma',
-				'./VRMA/Goodbye.vrma',
-				'./VRMA/Jump.vrma',
-				'./VRMA/LookAround.vrma',
-				'./VRMA/Relax.vrma',
-				'./VRMA/Sad.vrma',
-				'./VRMA/Sleepy.vrma',
-				'./VRMA/Surprised.vrma',
-				'./VRMA/Thinking.vrma',
-			];
+			const VRMA_DIR = './VRMA/';
+			const VRMA_MANIFEST_URL = './VRMA/manifest.json';
+			let vrmaAnimationURLs = []; // Dynamically discovered VRMA animation paths
 
 			// --- VRM Model Discovery ---
 			// Try to list the VRM/ directory from the server's HTML directory listing
@@ -274,6 +253,77 @@
 					vrmSelect.appendChild(new Option(file, VRM_DIR + encodeURIComponent(file)));
 				});
 				vrmSelect.disabled = false;
+			}
+
+			// --- VRMA Animation Discovery ---
+			async function discoverVRMAAnimations() {
+				// 1) Try parsing a server directory listing
+				try {
+					const response = await fetch(VRMA_DIR);
+					if (response.ok) {
+						const html = await response.text();
+						const matches = [...html.matchAll(/href="([^"]+\.vrma)"/gi)];
+						const animations = matches
+							.map(m => decodeURIComponent(m[1].split('/').pop()))
+							.filter(Boolean);
+						const unique = [...new Set(animations)].sort((a, b) => a.localeCompare(b));
+						if (unique.length > 0) {
+							return unique;
+						}
+					}
+				} catch (e) {
+					console.warn('VRMA directory scan failed, falling back to manifest:', e);
+				}
+
+				// 2) Fall back to the static manifest
+				try {
+					const response = await fetch(VRMA_MANIFEST_URL);
+					if (response.ok) {
+						const data = await response.json();
+						if (Array.isArray(data.animations) && data.animations.length > 0) {
+							return data.animations;
+						}
+					}
+				} catch (e) {
+					console.error('VRMA manifest load failed:', e);
+				}
+
+				return [];
+			}
+
+			// Populate VRMA buttons from a list of animation file names
+			function populateVRMAButtons(animationFiles) {
+				const container = document.getElementById('vrmaButtons');
+				// Keep the label, remove any existing buttons
+				container.querySelectorAll('.vrma-btn').forEach(btn => btn.remove());
+
+				vrmaAnimationURLs = animationFiles.map(file => VRMA_DIR + encodeURIComponent(file));
+
+				if (animationFiles.length === 0) {
+					const empty = document.createElement('button');
+					empty.className = 'vrma-btn';
+					empty.disabled = true;
+					empty.textContent = 'None found';
+					container.appendChild(empty);
+					return;
+				}
+
+				animationFiles.forEach((file, index) => {
+					const btn = document.createElement('button');
+					btn.className = 'vrma-btn';
+					btn.disabled = true;
+					// Derive label from filename (e.g. "LookAround.vrma" → "LookAround")
+					btn.textContent = file.replace(/\.vrma$/i, '');
+					btn.addEventListener('click', async () => {
+						if (currentAction) {
+							currentAction.stop();
+							currentAction = undefined;
+						}
+						vrmaAnimationClip = undefined;
+						await loadVRMA(vrmaAnimationURLs[index]);
+					});
+					container.appendChild(btn);
+				});
 			}
 
 			// --- File Loading Functions ---
@@ -473,7 +523,7 @@
 				const hasVrma = vrmaAnimationClip !== undefined;
 				
 				// Enable VRMA selection buttons once VRM is loaded
-				vrmaButtons.forEach(btn => {
+				vrmaButtonsContainer.querySelectorAll('.vrma-btn').forEach(btn => {
 					btn.disabled = !hasVrm;
 				});
 
@@ -482,21 +532,6 @@
 				pauseBtn.disabled = !(hasVrm && hasVrma);
 				stopBtn.disabled = !(hasVrm && hasVrma);
 			}
-
-			// Add event listeners for VRMA animation buttons
-			vrmaButtons.forEach((button, index) => {
-				button.addEventListener('click', async () => {
-					// Stop current animation if playing before loading new one
-					if (currentAction) {
-						currentAction.stop();
-						currentAction = undefined;
-					}
-					vrmaAnimationClip = undefined; // Clear previous animation clip
-					
-					const vrmaUrl = VRMA_ANIMATION_URLS[index];
-					await loadVRMA(vrmaUrl);
-				});
-			});
 
 			playBtn.addEventListener('click', playAnimation);
 			pauseBtn.addEventListener('click', pauseAnimation);
@@ -556,10 +591,15 @@
 			animate();
 
 			// --- Initial Load ---
-			// Discover available models, populate the dropdown, and load the first one
+			// Discover available models and animations, populate UI, and load the first model
 			window.addEventListener('DOMContentLoaded', async () => {
-				const models = await discoverVRMModels();
+				const [models, animations] = await Promise.all([
+					discoverVRMModels(),
+					discoverVRMAAnimations(),
+				]);
+
 				populateVRMSelect(models);
+				populateVRMAButtons(animations);
 
 				if (models.length > 0) {
 					currentVRMModelURL = VRM_DIR + encodeURIComponent(models[0]);
