@@ -41,5 +41,9 @@ build/
 *.bak
 *.orig
 
+# BVH animation directories (large, not needed in repo)
+bvh.animation/
+bvh.animation.small/
+
 # Documentation drafts (not for repository)
 qiita_article.md

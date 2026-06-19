@@ -419,11 +419,14 @@
 					throw new Error('Empty or invalid BVH motion payload.');
 				}
 
+				const vrm = AppState.currentVrm;
+				const isVRM0 = vrm.meta && vrm.meta.metaVersion === '0';
+
 				const boneNameToNode = {};
 				for (const track of bvhClip.tracks) {
 					const boneName = track.name.split('.')[0];
 					if (boneNameToNode[boneName] !== undefined) continue;
-					const node = AppState.currentVrm.humanoid.getNormalizedBoneNode(boneName);
+					const node = vrm.humanoid.getNormalizedBoneNode(boneName);
 					boneNameToNode[boneName] = node || null;
 				}
 
@@ -443,7 +446,7 @@
 						const scaleFactor = 0.01; // cm to m
 						for (let i = 0; i < values.length; i++) values[i] *= scaleFactor;
 
-						const vrmHipsNode = AppState.currentVrm.humanoid.getNormalizedBoneNode('hips');
+						const vrmHipsNode = vrm.humanoid.getNormalizedBoneNode('hips');
 						if (vrmHipsNode) {
 							const vrmPos = vrmHipsNode.position;
 							const offsetX = vrmPos.x - values[0];
@@ -456,11 +459,17 @@
 							}
 						}
 						tracks.push(new THREE.VectorKeyframeTrack(nodePath, track.times, values));
+					} else if (track instanceof THREE.QuaternionKeyframeTrack) {
+						const values = Float32Array.from(track.values);
+						if (isVRM0) {
+							for (let i = 0; i < values.length; i += 4) {
+								values[i]     = -values[i];
+								values[i + 2] = -values[i + 2];
+							}
+						}
+						tracks.push(new THREE.QuaternionKeyframeTrack(nodePath, track.times, values));
 					} else {
-						const TrackClass = track instanceof THREE.QuaternionKeyframeTrack
-							? THREE.QuaternionKeyframeTrack
-							: THREE.VectorKeyframeTrack;
-						tracks.push(new TrackClass(nodePath, track.times, Float32Array.from(track.values)));
+						tracks.push(new THREE.VectorKeyframeTrack(nodePath, track.times, Float32Array.from(track.values)));
 					}
 				}
 
