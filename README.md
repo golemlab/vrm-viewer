@@ -49,7 +49,6 @@ Open `index.html` in a web browser to see the demo. The viewer includes:
 ```
 vrm-viewer/
 ├── index.html                  # Main viewer application (all logic)
-├── AGENTS.md                   # AI agent guidelines
 ├── VRM/
 │   ├── models.json             # Model manifest for GitHub Pages
 │   └── *.vrm                   # VRM model files
@@ -83,12 +82,6 @@ vrm-viewer/
    ```bash
    # Using Python
    python -m http.server 8000
-   
-   # Using Node.js
-   npx serve .
-   
-   # Using PHP
-   php -S localhost:8000
    ```
 3. **Open your browser** and navigate to `http://localhost:8000`
 4. **Load the VRM model** (automatically loads on page load)
