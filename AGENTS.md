@@ -9,8 +9,6 @@ Single-file (`index.html`) web viewer for VRM 3D models with VRMA and BVH animat
 A web server is required (fetch calls fail on `file://`):
 
 ```bash
-npx serve .
-# or
 python -m http.server 8000
 ```
 
