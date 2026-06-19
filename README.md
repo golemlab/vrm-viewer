@@ -1,19 +1,27 @@
-# VRM Viewer with VRMA Animation
+# VRM Viewer with VRMA & BVH Animation
 
-[English](README.md) | [日本語](README-jp.md)
+[English](README.md) | [org 日本語](README-jp.md)
 
-A web-based VRM (Virtual Reality Model) viewer with VRMA (VRM Animation) support built using Three.js and the three-vrm library.
+A web-based VRM (Virtual Reality Model) viewer with VRMA (VRM Animation) and BVH motion capture support built using Three.js and the three-vrm library. Single-file app (`index.html`), no build system, all dependencies CDN-loaded.
+
+## Recent Development Summary
+
+- **Model management** — Dynamic VRM model discovery (directory listing + JSON manifest), model selector dropdown, proper cleanup/disposal.
+- **VRMA animations** — Dynamic discovery + manifest, dropdown-based selection.
+- **BVH animation support** — Full BVH motion capture loading with 100+ animations, playback controls, hips position grounding (cm→m), and bone filtering.
+- **VRM 0.x compatibility** — `VRMUtils.rotateVRM0` for version-aware orientation, quaternion Y-axis inversion for correct BVH rotation retargeting on VRM 0.x models.
 
 ## 🎮 Live Demo
 
-**[Try the Demo →](https://tk256ailab.github.io/vrm-viewer/)**
+**[Try the Demo from the org creator →](https://tk256ailab.github.io/vrm-viewer/)**
 
 
 ## Features
 
 - 📱 **Responsive Design**: Works on desktop and mobile devices
-- 🎭 **VRM Model Support**: Load and display VRM 1.0 models
+- 🎭 **VRM Model Support**: Load and display VRM 0.x and 1.0 models
 - 🎬 **VRMA Animation**: Play custom VRMA animation files
+- 🎯 **BVH Motion Capture**: Play 100+ BVH motion capture animations
 - 🎮 **Interactive Controls**: Play, pause, and stop animations
 - 🎨 **Modern UI**: Clean, gradient-based interface
 - ⚡ **Fast Performance**: Optimized rendering and animations
@@ -39,24 +47,20 @@ Open `index.html` in a web browser to see the demo. The viewer includes:
 ## Project Structure
 
 ```
-vrm_viewer/
-├── index.html              # Main viewer application
+vrm-viewer/
+├── index.html                  # Main viewer application (all logic)
+├── AGENTS.md                   # AI agent guidelines
 ├── VRM/
-│   └── sample.vrm     # Sample VRM model
+│   ├── models.json             # Model manifest for GitHub Pages
+│   └── *.vrm                   # VRM model files
 ├── VRMA/
-│   ├── Angry.vrma          # Angry emotion animation
-│   ├── Blush.vrma          # Blushing emotion animation
-│   ├── Clapping.vrma       # Clapping hands animation
-│   ├── Goodbye.vrma        # Waving goodbye animation
-│   ├── Jump.vrma           # Jumping action animation
-│   ├── LookAround.vrma     # Looking around animation
-│   ├── Relax.vrma          # Relaxed pose animation
-│   ├── Sad.vrma            # Sad emotion animation
-│   ├── Sleepy.vrma         # Sleepy emotion animation
-│   ├── Surprised.vrma      # Surprised emotion animation
-│   └── Thinking.vrma       # Thinking pose animation
-├── README.md               # This file
-└── README-jp.md           # Japanese documentation
+│   ├── manifest.json           # Animation manifest for GitHub Pages
+│   └── *.vrma                  # VRMA animation files
+├── bvh.animation/
+│   ├── manifest.json           # BVH manifest for GitHub Pages
+│   └── *.bvh                   # BVH motion capture files (100+)
+├── README.md
+└── README-jp.md
 ```
 
 ## Quick Start
@@ -95,16 +99,14 @@ vrm_viewer/
 
 ### Loading VRM Models
 
-The viewer automatically loads the VRM model specified in `index.html`. To use your own model:
+The viewer discovers VRM models automatically via directory listing (local servers) or `VRM/models.json` (GitHub Pages). To add a model, place a `.vrm` file in `VRM/` and add its filename to `VRM/models.json`.
 
-1. Place your `.vrm` file in the `VRM/` directory
-2. Update the `VRM_MODEL_URL` variable in `index.html`
-
-### Playing VRMA Animations
+### Playing Animations
 
 1. Wait for the VRM model to load completely
-2. Click any of the VRMA animation buttons to select an animation (Angry, Blush, Clapping, Goodbye, Jump, LookAround, Relax, Sad, Sleepy, Surprised, or Thinking)
-3. Use the playback controls to manage animation
+2. Select a VRMA or BVH animation from the respective dropdown
+3. Animation starts playing automatically
+4. Use Play/Pause/Stop controls as needed
 
 ### Camera Controls
 
@@ -129,8 +131,8 @@ The viewer automatically loads the VRM model specified in `index.html`. To use y
 
 ### Animation Specifications
 
-- **Format**: VRMA (VRM Animation) files in glTF binary format
-- **Humanoid Bones**: Compatible with VRM 1.0 humanoid specification
+- **VRMA Format**: VRMA (VRM Animation) files in glTF binary format, compatible with VRM 1.0 humanoid specification
+- **BVH Format**: Biovision Hierarchy motion capture files, auto-retargeted to VRM humanoid bones
 - **Frame Rate**: 60 FPS with linear interpolation
 - **Duration**: Variable (4-12 seconds for included animations)
 
@@ -145,10 +147,14 @@ The viewer automatically loads the VRM model specified in `index.html`. To use y
 
 ### Adding New Animations
 
-1. Create or obtain VRMA animation files
-2. Place them in the `VRMA/` directory
-3. Update the `VRMA_ANIMATION_URLS` array in `index.html`
-4. Add corresponding buttons in the HTML
+**VRMA:**
+1. Place `.vrma` files in `VRMA/`
+2. Add filename to `VRMA/manifest.json`
+
+**BVH:**
+1. Place `.bvh` files in `bvh.animation/`
+2. Add filename to `bvh.animation/manifest.json`
+3. BVH files must use VRM humanoid bone names (hips, spine, chest, etc.)
 
 ### Styling
 
